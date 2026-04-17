@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laravel Logic Simulator — KP Edition v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hide.css">
+</head>
+<body>
+
+<!-- Loading Bar -->
+<div class="loading-bar" id="loadingBar"></div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Context Menu -->
+<div class="context-menu hidden" id="contextMenu"></div>
+
+<!-- Snippet Dropdown -->
+<div class="snippet-menu hidden" id="snippetMenu"></div>
+
+<!-- ═══════ SEARCH OVERLAY ═══════ -->
+<div class="search-overlay hidden" id="searchOverlay">
+  <div class="search-box">
+    <div class="search-input-row">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search in files..." autocomplete="off" />
+      <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-ui);cursor:pointer" onclick="closeSearch()">ESC</span>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+    <div class="search-footer">
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> open</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ NEW FILE MODAL ═══════ -->
+<div class="modal-overlay hidden" id="newFileModal">
+  <div class="modal">
+    <div class="modal-title">📄 New File</div>
+    <div class="modal-body">Create a new file in the virtual filesystem.</div>
+    <input class="modal-input" id="newFileName" placeholder="e.g. app/Http/Controllers/UserController.php" autocomplete="off" />
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('newFileModal')">Cancel</button>
+      <button class="modal-btn primary" onclick="confirmNewFile()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CONFIRM MODAL ═══════ -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal">
+    <div class="modal-title" id="confirmTitle">⚠️ Confirm</div>
+    <div class="modal-body" id="confirmBody">Are you sure?</div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="modal-btn danger" id="confirmOkBtn" onclick="">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SETTINGS MODAL ═══════ -->
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal" style="min-width:440px">
+    <div class="modal-title">⚙️ Settings</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <label style="font-size:12px;color:var(--text-main);font-family:var(--font-ui);display:flex;justify-content:space-between;align-items:center">
+        Font Size
+        <select class="modal-select" id="settingFontSize" style="width:120px;margin:0">
+          <option value="11">11px</option>
+          <option value="12">12px</option>
+          <option value="13" selected>13px</option>
+          <option value="14">14px</option>
+          <option value="15">15px</option>
+          <option value="16">16px</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-main);font-family:var(--font-ui);display:flex;justify-content:space-between;align-items:center">
+        Tab Size
+        <select class="modal-select" id="settingTabSize" style="width:120px;margin:0">
+          <option value="2">2 spaces</option>
+          <option value="4" selected>4 spaces</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-main);font-family:var(--font-ui);display:flex;justify-content:space-between;align-items:center">
+        Line Numbers
+        <select class="modal-select" id="settingLineNums" style="width:120px;margin:0">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-main);font-family:var(--font-ui);display:flex;justify-content:space-between;align-items:center">
+        Word Wrap
+        <select class="modal-select" id="settingWordWrap" style="width:120px;margin:0">
+          <option value="off" selected>Off</option>
+          <option value="on">On</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-main);font-family:var(--font-ui);display:flex;justify-content:space-between;align-items:center">
+        Auto Save
+        <select class="modal-select" id="settingAutoSave" style="width:120px;margin:0">
+          <option value="off" selected>Off</option>
+          <option value="on">On</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('settingsModal')">Close</button>
+      <button class="modal-btn primary" onclick="applySettings()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN APP ═══════════ -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-dots">
+      <div class="dot dot-r" title="Close"></div>
+      <div class="dot dot-y" title="Minimize"></div>
+      <div class="dot dot-g" title="Maximize"></div>
+    </div>
+    <span class="topbar-title" style="margin-right:8px">Laravel Logic Simulator</span>
+    <span class="topbar-brand">⚡ KP EDITION v2</span>
+    <div class="topbar-right">
+      <button class="tbtn" onclick="openNewFileModal()">＋ New File</button>
+      <button class="tbtn" onclick="openSearch()">🔍 Search</button>
+      <div class="tbtn-divider"></div>
+      <button class="tbtn" id="btnServe" onclick="cmdServe()"><span class="dot-indicator"></span> serve</button>
+      <button class="tbtn" id="btnPreview" onclick="togglePreview()">◫ Preview</button>
+      <button class="tbtn" id="btnHints" onclick="toggleHints()">✎ Artisan</button>
+      <div class="tbtn-divider"></div>
+      <button class="tbtn" onclick="formatCode()" title="Format Code (Alt+Shift+F)">⌸ Format</button>
+      <button class="tbtn" onclick="openSettings()">⚙ Settings</button>
+      <button class="tbtn danger" onclick="clearAll()" title="Reset Filesystem">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-hdr">
+        <span>Explorer</span>
+        <span class="sidebar-hdr-icon" title="Collapse All" onclick="collapseAllFolders()">⊟</span>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" id="sidebarSearch" placeholder="Filter files..." oninput="filterSidebar(this.value)" />
+      </div>
+      <div class="file-list" id="fileList" oncontextmenu="handleSidebarRightClick(event)"></div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="editor-col">
+      <div class="tab-bar" id="tabBar">
+        <span class="tab-right-info">
+          <span id="tabEncoding">UTF-8</span>
+          <span>|</span>
+          <span id="tabLang">PHP</span>
+          <span>|</span>
+          <span>Ctrl+S: Save</span>
+          <span>Ctrl+F: Find</span>
+        </span>
+      </div>
+      <div class="breadcrumb" id="breadcrumb">
+        <span>routes</span><span class="sep">/</span><span>web.php</span>
+      </div>
+      <div class="editor-wrap" id="editorWrap">
+        <div class="line-nums" id="lineNums"></div>
+        <div class="active-line-overlay" id="activeLineOverlay" style="display:none"></div>
+        <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"
+          oncontextmenu="showEditorContextMenu(event)"></textarea>
+        <div class="minimap" id="minimap">
+          <canvas id="minimapCanvas" width="60"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREVIEW PANE -->
+    <div class="preview-pane" id="previewPane">
+      <div class="preview-toolbar">
+        <div class="browser-dots">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e"></div>
+          <div class="browser-dot" style="background:#28c840"></div>
+        </div>
+        <div class="url-bar" id="urlBar">http://localhost:8000</div>
+        <div class="preview-actions">
+          <button class="preview-action-btn" onclick="refreshPreview()" title="Refresh">⟳</button>
+          <button class="preview-action-btn" onclick="togglePreviewDevice()" id="deviceToggle" title="Toggle Mobile/Desktop">📱</button>
+        </div>
+      </div>
+      <iframe id="preview" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+
+    <!-- ARTISAN HINT PANEL -->
+    <div class="hint-panel" id="hintPanel">
+      <div class="hint-hdr">
+        <span>Artisan Cheatsheet</span>
+        <span style="color:var(--accent-cyan);font-size:9px" id="hintCount">0 cmds</span>
+      </div>
+      <div class="hint-search">
+        <input type="text" placeholder="Search commands..." id="hintSearchInput" oninput="filterHints(this.value)" />
+      </div>
+      <div class="hint-body" id="hintBody"></div>
+    </div>
+
+  </div><!-- .workspace -->
+
+  <!-- TERMINAL -->
+  <div class="bottom-area" id="bottomArea">
+    <div class="term-topbar">
+      <div class="term-tab active" onclick="switchTermTab('terminal',this)">TERMINAL</div>
+      <div class="term-tab" onclick="switchTermTab('problems',this)">PROBLEMS <span class="problem-badge" id="problemBadge" style="display:none">0</span></div>
+      <div class="term-tab" onclick="switchTermTab('git',this)">GIT</div>
+      <div class="term-tab" onclick="switchTermTab('outline',this)">OUTLINE</div>
+      <div class="term-tab" onclick="switchTermTab('db',this)">DATABASE</div>
+      <div class="term-status">
+        <span class="dot-indicator"></span>
+        php artisan serve — :8000
+      </div>
+      <span class="term-toggle" id="termToggle" onclick="toggleTerminal()">▾</span>
+    </div>
+
+    <!-- TERMINAL PANEL -->
+    <div class="terminal" id="panelTerminal">
+      <div class="term-body" id="termBody">
+        <div class="t-green">Laravel 11.x Development Server</div>
+        <div class="t-gray">Welcome, <span class="t-blue">Prince</span>! Type <span class="t-yellow">list</span> for all commands, <span class="t-yellow">help &lt;cmd&gt;</span> for usage.</div>
+        <div class="t-gray">Tip: <span class="t-cyan">↑↓</span> for history · <span class="t-cyan">Tab</span> for autocomplete · <span class="t-cyan">Ctrl+L</span> to clear</div>
+      </div>
+      <div class="term-input-row">
+        <span class="term-prompt">php artisan&nbsp;</span>
+        <input type="text" class="term-input" id="termInput" placeholder="make:model Post --all" autocomplete="off" />
+      </div>
+    </div>
+
+    <!-- PROBLEMS PANEL -->
+    <div class="terminal" id="panelProblems" style="display:none">
+      <div class="term-body" id="problemsBody">
+        <div class="t-green">✓ No problems detected.</div>
+      </div>
+    </div>
+
+    <!-- GIT PANEL -->
+    <div class="terminal" id="panelGit" style="display:none">
+      <div class="term-body" id="gitBody">
+        <div class="t-yellow">● On branch <span class="t-green">main</span></div>
+        <div class="t-gray">Your branch is up to date with <span class="t-blue">origin/main</span></div>
+        <div style="margin-top:8px" class="t-gray">Changes not staged for commit:</div>
+      </div>
+    </div>
+
+    <!-- OUTLINE PANEL -->
+    <div class="terminal" id="panelOutline" style="display:none;padding:8px 0">
+      <div id="outlineBody" style="overflow-y:auto;flex:1"></div>
+    </div>
+
+    <!-- DATABASE PANEL -->
+    <div class="terminal" id="panelDb" style="display:none">
+      <div class="term-body" id="dbBody">
+        <div class="t-cyan">── Database Tables ──</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <span class="sb-item sb-git" id="sbGit">⎇ main</span>
+    <span class="sb-item sb-errors" id="sbErrors" style="display:none">✗ <span id="sbErrorCount">0</span> errors</span>
+    <span class="sb-item sb-ok" id="sbOk">✓ Ready</span>
+    <span class="sb-item" id="sbFile">routes/web.php</span>
+    <div class="sb-right">
+      <span class="sb-item" id="sbLines">Ln 1, Col 1</span>
+      <span class="sb-item" id="sbSel"></span>
+      <span class="sb-item" id="sbLang">PHP</span>
+      <span class="sb-item">Laravel 11.x</span>
+      <span class="sb-item">PHP 8.3</span>
+      <span class="sb-item" id="sbWordCount"></span>
+    </div>
+  </div>
+
+</div><!-- #app -->
+<script src="script.js"></script>
+</body>
+</html>
